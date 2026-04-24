@@ -81,6 +81,16 @@ class AscendW8A8MXFP8DynamicLinearMethod(AscendLinearScheme):
         if bias is not None and bias.dtype != torch.float32:
             bias = bias.to(torch.float32)
 
+        k_dim = layer.weight.shape[0]
+        target_dim = (k_dim + 63) // 64
+        current_dim = layer.weight_scale.shape[0]
+        if current_dim != target_dim:
+            ws = layer.weight_scale.data
+            pad_size = target_dim - current_dim
+            ws_padded = torch.nn.functional.pad(ws, (0, 0, 0, 0, 0, pad_size))
+            layer.weight_scale.data = ws_padded
+            layer.weight.data = layer.weight.data.contiguous()
+            
         output = torch_npu.npu_quant_matmul(
             quantized_x,
             layer.weight,
